@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>News Duplicate MVP</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>เว็บกันข่าวซ้ำประจำวัน</h1>
+      <p>วางลิงก์ข่าว → ระบบแยก keyword → เช็กข่าวที่เขียนแล้ววันนี้</p>
+    </header>
+
+    <section class="card">
+      <h2>เพิ่มลิงก์ข่าว</h2>
+      <label>ชื่อนักข่าว</label>
+      <input id="journalist" placeholder="เช่น A, โจ, กะเช้า">
+      <label>ลิงก์ข่าว วันละหลายลิงก์ได้</label>
+      <textarea id="links" rows="7" placeholder="https://cointelegraph.com/...&#10;https://www.theblock.co/..."></textarea>
+      <button id="submitBtn">เพิ่มข่าว</button>
+      <pre id="result"></pre>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Keyword วันนี้</h2>
+        <div id="keywords" class="keywords"></div>
+      </div>
+      <div class="card">
+        <h2>ข่าววันนี้</h2>
+        <input id="search" placeholder="ค้นหา keyword / headline / นักข่าว">
+        <div id="articles"></div>
+      </div>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
