@@ -31,7 +31,7 @@ function renderKeywords() {
 function renderArticles(filter = '') {
   const needle = filter.trim().toLowerCase();
   const articles = state.articles.filter(a => {
-    const hay = `${a.title} ${a.source} ${a.journalist} ${a.keywords.join(' ')}`.toLowerCase();
+    const hay = `${a.title} ${a.title_th || ''} ${a.source} ${a.journalist} ${a.keywords.join(' ')}`.toLowerCase();
     return !needle || hay.includes(needle);
   });
   const box = $('articles');

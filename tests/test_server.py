@@ -15,6 +15,7 @@ def test_submit_links_creates_articles_and_reports_duplicates(tmp_path):
     assert first_payload["created"] == 1
     assert first_payload["duplicates"] == []
     assert first_payload["articles"][0]["keywords"]
+    assert first_payload["articles"][0]["title_th"] == "Strategy ซื้อ Bitcoin"
 
     second = client.post("/api/links", json={
         "journalist": "B",

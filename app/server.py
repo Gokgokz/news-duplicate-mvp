@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS articles (
     url TEXT NOT NULL,
     normalized_url TEXT NOT NULL,
     title TEXT NOT NULL,
+    title_th TEXT NOT NULL DEFAULT '',
     source TEXT NOT NULL,
     journalist TEXT NOT NULL,
     keywords TEXT NOT NULL,
@@ -70,12 +71,14 @@ def create_app(config=None):
         duplicates = []
         for url in raw_links:
             metadata = fetch_metadata(url, testing=app.config["TESTING"])
+            metadata["title_th"] = translate_title_to_thai(metadata["title"])
             keywords = extract_keywords(f"{metadata['title']} {metadata['source']} {metadata['url']}", limit=5)
             hits = detect_duplicates(metadata["url"], metadata["title"], keywords, existing + created_articles, target_date)
             if hits:
                 duplicates.append({
                     "url": url,
                     "title": metadata["title"],
+                    "title_th": metadata["title_th"],
                     "keywords": keywords,
                     "type": hits[0]["type"],
                     "matches": hits,
@@ -103,6 +106,9 @@ def current_app_database():
 def init_db():
     db = get_db()
     db.executescript(SCHEMA)
+    columns = {row[1] for row in db.execute("PRAGMA table_info(articles)").fetchall()}
+    if "title_th" not in columns:
+        db.execute("ALTER TABLE articles ADD COLUMN title_th TEXT NOT NULL DEFAULT ''")
     db.commit()
 
 
@@ -138,12 +144,119 @@ def fetch_metadata(url: str, testing: bool = False) -> dict:
     return {"url": url.strip(), "normalized_url": normalized, "source": source, "title": title}
 
 
+THAI_TERMS = {
+    "bitcoin": "Bitcoin",
+    "ethereum": "Ethereum",
+    "solana": "Solana",
+    "xrp": "XRP",
+    "strategy": "Strategy",
+    "microstrategy": "MicroStrategy",
+    "michael saylor": "Michael Saylor",
+    "saylor": "Saylor",
+    "tom lee": "Tom Lee",
+    "satoshi": "Satoshi",
+    "etf": "ETF",
+    "sec": "SEC",
+    "cftc": "CFTC",
+    "coinbase": "Coinbase",
+    "binance": "Binance",
+    "blackrock": "BlackRock",
+    "federal reserve": "Fed",
+    "fed": "Fed",
+    "stablecoin": "stablecoin",
+}
+
+THAI_WORDS = {
+    "buys": "ซื้อ",
+    "buy": "ซื้อ",
+    "bought": "ซื้อ",
+    "purchase": "ซื้อ",
+    "purchases": "ซื้อ",
+    "adds": "เพิ่ม",
+    "add": "เพิ่ม",
+    "added": "เพิ่ม",
+    "sells": "ขาย",
+    "sell": "ขาย",
+    "sold": "ขาย",
+    "raises": "ระดมทุน",
+    "raise": "ระดมทุน",
+    "launches": "เปิดตัว",
+    "launch": "เปิดตัว",
+    "approves": "อนุมัติ",
+    "approve": "อนุมัติ",
+    "rejects": "ปฏิเสธ",
+    "reject": "ปฏิเสธ",
+    "delays": "เลื่อน",
+    "delay": "เลื่อน",
+    "files": "ยื่นเอกสาร",
+    "file": "ยื่นเอกสาร",
+    "sues": "ฟ้อง",
+    "sue": "ฟ้อง",
+    "charges": "ตั้งข้อหา",
+    "charge": "ตั้งข้อหา",
+    "warns": "เตือน",
+    "warn": "เตือน",
+    "says": "กล่าวว่า",
+    "say": "กล่าวว่า",
+    "sees": "มองเห็น",
+    "predicts": "คาดการณ์",
+    "hits": "แตะ",
+    "hit": "แตะ",
+    "falls": "ร่วง",
+    "fall": "ร่วง",
+    "drops": "ลดลง",
+    "drop": "ลดลง",
+    "rises": "เพิ่มขึ้น",
+    "rise": "เพิ่มขึ้น",
+    "surges": "พุ่ง",
+    "surge": "พุ่ง",
+    "inflows": "เงินไหลเข้า",
+    "outflows": "เงินไหลออก",
+    "more": "เพิ่ม",
+    "as": "หลัง",
+    "amid": "ท่ามกลาง",
+    "after": "หลัง",
+    "before": "ก่อน",
+    "with": "พร้อม",
+    "on": "เกี่ยวกับ",
+    "for": "สำหรับ",
+}
+
+
+def translate_title_to_thai(title: str) -> str:
+    """Translate common crypto-news headline terms into Thai for quick newsroom use."""
+    title = (title or "").strip()
+    if not title:
+        return ""
+    protected = {}
+    working = title
+    for term in sorted(THAI_TERMS, key=len, reverse=True):
+        pattern = re.compile(rf"\b{re.escape(term)}\b", re.IGNORECASE)
+        if pattern.search(working):
+            key = f"__TERM_{len(protected)}__"
+            protected[key] = THAI_TERMS[term]
+            working = pattern.sub(key, working)
+    tokens = re.findall(r"__TERM_\d+__|[A-Za-z0-9]+(?:\.[0-9]+)?|[^\w\s]", working)
+    translated = []
+    for token in tokens:
+        if token in protected:
+            translated.append(protected[token])
+        elif re.match(r"^[^\w\s]$", token):
+            translated.append(token)
+        else:
+            translated.append(THAI_WORDS.get(token.lower(), token))
+    text = " ".join(translated)
+    text = re.sub(r"\s+([,.:;%])", r"\1", text)
+    return re.sub(r"\s+", " ", text).strip() or title
+
+
 def row_to_article(row) -> dict:
     return {
         "id": row["id"],
         "url": row["url"],
         "normalized_url": row["normalized_url"],
         "title": row["title"],
+        "title_th": row["title_th"] or translate_title_to_thai(row["title"]),
         "source": row["source"],
         "journalist": row["journalist"],
         "keywords": json.loads(row["keywords"]),
@@ -165,11 +278,11 @@ def insert_article(metadata: dict, journalist: str, keywords: list[str], target_
     db = get_db()
     cursor = db.execute(
         """
-        INSERT INTO articles (url, normalized_url, title, source, journalist, keywords, created_at, created_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO articles (url, normalized_url, title, title_th, source, journalist, keywords, created_at, created_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
-            metadata["url"], metadata["normalized_url"], metadata["title"], metadata["source"],
+            metadata["url"], metadata["normalized_url"], metadata["title"], metadata["title_th"], metadata["source"],
             journalist, json.dumps(keywords, ensure_ascii=False), now, target_date,
         ),
     )

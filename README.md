@@ -23,6 +23,25 @@ http://SERVER_IP:5000
 
 ถ้ารันบน AWS ต้องเปิด Security Group port ที่ใช้ก่อน
 
+## Deploy บน Render
+
+1. ไปที่ Render → New + → Web Service
+2. Connect GitHub repo: `Gokgokz/news-duplicate-mvp`
+3. ตั้งค่า:
+   - Environment: `Python 3`
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `gunicorn 'app.server:create_app()'`
+4. Instance type: Free
+5. กด Deploy
+6. หลัง deploy เสร็จ Render จะให้ URL เช่น:
+   `https://news-duplicate-mvp.onrender.com`
+
+ถ้าเปิดแล้ว error ให้ดู Logs ใน Render ก่อนเป็นอย่างแรก
+
+หมายเหตุ:
+- Free tier ของ Render จะ sleep ได้เมื่อไม่มีคนใช้งาน
+- `news.db` บน Render เป็น ephemeral storage — เหมาะกับ demo/test ชั่วคราว ถ้า redeploy ข้อมูลอาจหาย
+
 ## Test
 
 ```bash
